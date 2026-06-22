@@ -230,6 +230,32 @@
     min-width: 44px;
   }
   #step-counter { color: #8b949e; font-size: 0.9rem; min-width: 48px; text-align: center; }
+
+  /* ===== START OVERLAY ===== */
+  #start-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,17,23,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    gap: 20px;
+  }
+  #start-overlay p { color: #8b949e; font-size: 1rem; }
+  #btn-start {
+    background: #238636;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 20px 52px;
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #btn-start:hover { background: #2ea043; }
 </style>
 </head>
 <body>
@@ -242,6 +268,11 @@
     <a href="https://hamaaloha.github.io/ssc_guide/" class="site-nav-link">個票の見方</a>
   </div>
 </nav>
+
+<div id="start-overlay">
+  <button id="btn-start">▶ タップして開始</button>
+  <p>音声案内が流れます</p>
+</div>
 
 <div id="progress-bar"><div id="progress-fill"></div></div>
 
@@ -340,6 +371,7 @@ const AUTO_ADVANCE = [true, true, false, false, true];
 
 let currentSlide = 0;
 let muted        = false;
+let started      = false;
 let currentAudio = null;
 let nextTimer    = null;
 
@@ -360,6 +392,7 @@ function speak(n) {
     currentAudio.currentTime = 0;
     currentAudio = null;
   }
+  if (!started) return;
   if (muted) { scheduleNext(); return; }
   const src = `media/post_${String(n).padStart(2, '0')}.wav`;
   currentAudio = new Audio(src);
@@ -404,6 +437,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === ' ') btnNext.click();
   if (e.key === 'ArrowLeft') btnPrev.click();
   if (e.key === 'm' || e.key === 'M') btnMute.click();
+});
+
+document.getElementById('btn-start').addEventListener('click', () => {
+  started = true;
+  document.getElementById('start-overlay').style.display = 'none';
+  speak(currentSlide);
 });
 
 window.addEventListener('load', () => showSlide(0));
