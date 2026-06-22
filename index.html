@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CMJテスト 実施方法</title>
+<title>CMJテスト 実施方法（自動再生）</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -230,7 +230,6 @@
     min-width: 160px;
   }
   #btn-next:hover { background: #2ea043; transform: translateY(-1px); }
-  #btn-next:disabled { background: #21262d; color: #484f58; cursor: default; transform: none; }
 
   #btn-prev {
     background: #21262d;
@@ -240,11 +239,15 @@
   #btn-prev:hover { background: #30363d; }
   #btn-prev:disabled { opacity: 0.3; cursor: default; }
 
-  #btn-restart {
-    background: #1f6feb;
-    color: #fff;
+  #btn-pause {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 14px 20px;
+    font-size: 18px;
+    min-width: 56px;
   }
-  #btn-restart:hover { background: #388bfd; }
+  #btn-pause.paused { background: #1f6feb; color: #fff; border-color: #1f6feb; }
 
   #btn-mute {
     background: #21262d;
@@ -310,7 +313,7 @@
     <div class="badge">大阪体育大学スポーツ科学センター　測定評価部門</div>
     <h1>CMJテスト<br>実施方法のご説明</h1>
     <p>跳躍高を計測します</p>
-    <p style="color:#484f58; font-size:16px;">▶ボタンを押して説明を開始します</p>
+    <p style="color:#484f58; font-size:16px;">自動で再生されます</p>
   </div>
 
   <!-- スライド1: ジャンプ -->
@@ -391,8 +394,9 @@
 <!-- ナビゲーション -->
 <div id="nav">
   <button id="btn-prev" disabled>◀ 戻る</button>
-  <span id="step-counter">1 / 10</span>
+  <span id="step-counter">1 / 9</span>
   <button id="btn-next">次へ ▶</button>
+  <button id="btn-pause" title="一時停止/再開">⏸</button>
   <button id="btn-mute" title="音声ON/OFF">🔊</button>
 </div>
 
@@ -404,18 +408,20 @@ const MEDIA = {
   youtubeId: 'ZGEFLyIn1vs',
 };
 
-
 // ========== 状態 ==========
 let currentSlide = 0;
 const totalSlides = 9;
 let muted = false;
+let paused = false;
 let currentAudio = null;
+let nextTimer = null;
 
 // ========== DOM ==========
 const slides = document.querySelectorAll('.slide');
 const progressFill = document.getElementById('progress-fill');
 const btnNext = document.getElementById('btn-next');
 const btnPrev = document.getElementById('btn-prev');
+const btnPause = document.getElementById('btn-pause');
 const btnMute = document.getElementById('btn-mute');
 const stepCounter = document.getElementById('step-counter');
 
@@ -432,17 +438,31 @@ function initMedia() {
   videoContainer.appendChild(iframe);
 }
 
+// ========== 自動進行 ==========
+function scheduleNext() {
+  if (paused) return;
+  nextTimer = setTimeout(() => {
+    currentSlide = (currentSlide + 1) % totalSlides;
+    showSlide(currentSlide);
+  }, 2000);
+}
+
 // ========== 音声 ==========
 function speak(slideIndex) {
+  clearTimeout(nextTimer);
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.currentTime = 0;
     currentAudio = null;
   }
-  if (muted) return;
+  if (muted) {
+    scheduleNext();
+    return;
+  }
   const src = `media/narr_${String(slideIndex).padStart(2, '0')}.wav`;
   currentAudio = new Audio(src);
-  currentAudio.play().catch(() => {});
+  currentAudio.addEventListener('ended', scheduleNext);
+  currentAudio.play().catch(() => scheduleNext());
 }
 
 // ========== スライド表示 ==========
@@ -451,14 +471,11 @@ function showSlide(n) {
   progressFill.style.width = ((n / (totalSlides - 1)) * 100) + '%';
   stepCounter.textContent = `${n + 1} / ${totalSlides}`;
   btnPrev.disabled = (n === 0);
-  btnNext.textContent = (n === totalSlides - 1) ? '最初から ↺' : '次へ ▶';
+  btnNext.textContent = '次へ ▶';
 
-  // 注意点カードのアニメーション
   if (n === 7) {
     ['pc1','pc2','pc3'].forEach((id, i) => {
-      setTimeout(() => {
-        document.getElementById(id)?.classList.add('show');
-      }, i * 350);
+      setTimeout(() => document.getElementById(id)?.classList.add('show'), i * 350);
     });
   } else {
     ['pc1','pc2','pc3'].forEach(id => document.getElementById(id)?.classList.remove('show'));
@@ -469,11 +486,7 @@ function showSlide(n) {
 
 // ========== ボタン ==========
 btnNext.addEventListener('click', () => {
-  if (currentSlide === totalSlides - 1) {
-    currentSlide = 0;
-  } else {
-    currentSlide++;
-  }
+  currentSlide = (currentSlide + 1) % totalSlides;
   showSlide(currentSlide);
 });
 
@@ -484,11 +497,28 @@ btnPrev.addEventListener('click', () => {
   }
 });
 
+btnPause.addEventListener('click', () => {
+  paused = !paused;
+  btnPause.textContent = paused ? '▶' : '⏸';
+  btnPause.classList.toggle('paused', paused);
+  if (paused) {
+    clearTimeout(nextTimer);
+    if (currentAudio) currentAudio.pause();
+  } else {
+    if (currentAudio) {
+      currentAudio.play().catch(() => scheduleNext());
+    } else {
+      scheduleNext();
+    }
+  }
+});
+
 btnMute.addEventListener('click', () => {
   muted = !muted;
   btnMute.textContent = muted ? '🔇' : '🔊';
   if (muted) {
-    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
+    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
+    if (!paused) scheduleNext();
   } else {
     speak(currentSlide);
   }
@@ -498,6 +528,7 @@ btnMute.addEventListener('click', () => {
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === ' ') btnNext.click();
   if (e.key === 'ArrowLeft') btnPrev.click();
+  if (e.key === 'p' || e.key === 'P') btnPause.click();
   if (e.key === 'f' || e.key === 'F') toggleFullscreen();
   if (e.key === 'm' || e.key === 'M') btnMute.click();
 });
