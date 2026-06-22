@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMJテスト 実施方法</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #progress-bar {
+    height: 4px;
+    background: #21262d;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+  }
+  #progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #58a6ff, #3fb950);
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  #video-panel {
+    width: 38%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border-right: 1px solid #21262d;
+    flex-shrink: 0;
+  }
+  #video-panel video,
+  #video-panel iframe {
+    width: 100%;
+    height: calc(100vh - 120px);
+    border-radius: 12px;
+    border: 2px solid #30363d;
+    background: #000;
+  }
+  #video-panel .video-placeholder {
+    width: 100%;
+    min-height: 200px;
+    background: #161b22;
+    border: 2px dashed #30363d;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #484f58;
+    font-size: 14px;
+  }
+
+  #slide-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    overflow: hidden;
+  }
+
+  @media (max-width: 700px) {
+    #main { flex-direction: column; }
+    #video-panel { width: 100%; height: 35vh; border-right: none; border-bottom: 1px solid #21262d; padding: 12px; }
+  }
+
+  .slide {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    max-width: 900px;
+    width: 100%;
+    animation: fadeIn 0.4s ease;
+  }
+  .slide.active { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide-label {
+    font-size: clamp(20px, 2.8vw, 30px);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #58a6ff;
+    margin-bottom: 20px;
+    font-weight: 700;
+  }
+
+  .slide h1 {
+    font-size: clamp(40px, 6.5vw, 72px);
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 28px;
+  }
+
+  .slide p {
+    font-size: clamp(22px, 3vw, 32px);
+    line-height: 1.7;
+    color: #c9d1d9;
+    margin-bottom: 16px;
+    max-width: 700px;
+  }
+
+  .highlight {
+    color: #f0883e;
+    font-weight: 700;
+  }
+
+  .badge {
+    display: inline-block;
+    background: #1f6feb;
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+
+  /* 注意点カード */
+  .point-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .point-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+    opacity: 0;
+    transform: translateX(-16px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .point-card.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .point-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .point-text {
+    font-size: clamp(19px, 2.5vw, 26px);
+    color: #e6edf3;
+    line-height: 1.5;
+  }
+  .point-text strong {
+    color: #f0883e;
+    display: block;
+    font-size: 1.15em;
+    margin-bottom: 4px;
+  }
+
+  /* ナビゲーション */
+  #nav {
+    padding: 20px 32px 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+  }
+
+  button {
+    padding: 14px 32px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #btn-next {
+    background: #238636;
+    color: #fff;
+    min-width: 160px;
+  }
+  #btn-next:hover { background: #2ea043; transform: translateY(-1px); }
+  #btn-next:disabled { background: #21262d; color: #484f58; cursor: default; transform: none; }
+
+  #btn-prev {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+  }
+  #btn-prev:hover { background: #30363d; }
+  #btn-prev:disabled { opacity: 0.3; cursor: default; }
+
+  #btn-restart {
+    background: #1f6feb;
+    color: #fff;
+  }
+  #btn-restart:hover { background: #388bfd; }
+
+  #btn-mute {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 14px 20px;
+    font-size: 18px;
+  }
+
+  /* ステップ数表示 */
+  #step-counter {
+    font-size: 14px;
+    color: #484f58;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* 完了スライド */
+  .checkmark {
+    font-size: 72px;
+    margin-bottom: 20px;
+    animation: pop 0.5s ease;
+  }
+  @keyframes pop {
+    0%   { transform: scale(0.5); opacity: 0; }
+    70%  { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* 全画面ヒント */
+  #fullscreen-hint {
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    font-size: 12px;
+    color: #484f58;
+    cursor: pointer;
+  }
+  #fullscreen-hint:hover { color: #8b949e; }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"><div id="progress-fill"></div></div>
+
+<div id="main">
+<div id="video-panel">
+  <div id="video-container"></div>
+</div>
+
+<div id="slide-container">
+
+  <!-- スライド0: タイトル -->
+  <div class="slide active" id="slide-0">
+    <div class="badge">大阪体育大学スポーツ科学センター　測定評価部門</div>
+    <h1>CMJテスト<br>実施方法のご説明</h1>
+    <p>跳躍高を計測します</p>
+    <p style="color:#484f58; font-size:16px;">▶ボタンを押して説明を開始します</p>
+  </div>
+
+  <!-- スライド1: ジャンプ -->
+  <div class="slide" id="slide-1">
+    <div class="slide-label">Step 1 — ジャンプ</div>
+    <h1>こんな風に<br>ジャンプします</h1>
+    <p>「<span class="highlight">お願いします</span>」の合図で<br><span class="highlight">真上に</span>ジャンプしてください。</p>
+    <p>動画ではしゃがむ動作から<br>ジャンプまでが<span class="highlight">一連の流れ</span>です。</p>
+    <p>手は<span class="highlight">骨盤に固定</span>したまま。</p>
+  </div>
+
+  <!-- スライド2: フォースプレートに乗る -->
+  <div class="slide" id="slide-2">
+    <div class="slide-label">Step 2 — 開始姿勢</div>
+    <h1>フォースプレートの<br>上に乗ってください</h1>
+    <p>合図があるまでそのままお待ちください。</p>
+  </div>
+
+  <!-- スライド3: 手の位置 -->
+  <div class="slide" id="slide-3">
+    <div class="slide-label">Step 3 — 手の位置</div>
+    <h1>手は<span class="highlight">骨盤</span>に<br>当てて固定</h1>
+    <p>ジャンプ中も手は骨盤（腰の横）に<br>固定したままにしてください。<br>腕振りは行いません。</p>
+  </div>
+
+  <!-- スライド4: 着地の注意 -->
+  <div class="slide" id="slide-4">
+    <div class="slide-label">Step 4 — 着地の注意</div>
+    <h1>着地は<span class="highlight">母指球</span>を意識</h1>
+    <p>足首の怪我を防ぐため、<br><span class="highlight">親指の付け根（母指球）</span>から着地してください。</p>
+  </div>
+
+  <!-- スライド5: 着地後 -->
+  <div class="slide" id="slide-5">
+    <div class="slide-label">Step 5 — 着地後</div>
+    <h1>着地後は<br>フォースプレートの<br>上でリラックス</h1>
+    <p>「<span class="highlight">オッケーです</span>」の合図で<br>フォースプレートの上でリラックスしてください。</p>
+  </div>
+
+  <!-- スライド6: 回数 -->
+  <div class="slide" id="slide-6">
+    <div class="slide-label">Step 6 — 試技回数</div>
+    <h1>これを<span class="highlight">3回</span>繰り返します</h1>
+    <p>合図に従って3回ジャンプしてください。</p>
+    <p>「<span class="highlight">以上です</span>」の合図が出たら<br>フォースプレートから降りてください。</p>
+  </div>
+
+  <!-- スライド7: 注意点まとめ -->
+  <div class="slide" id="slide-7">
+    <div class="slide-label">まとめ — 注意点</div>
+    <h1 style="margin-bottom:24px;">3つの注意点</h1>
+    <div class="point-cards">
+      <div class="point-card" id="pc1">
+        <div class="point-icon">🙌</div>
+        <div class="point-text"><strong>手は骨盤に固定</strong>腕振りはしません</div>
+      </div>
+      <div class="point-card" id="pc2">
+        <div class="point-icon">🦶</div>
+        <div class="point-text"><strong>母指球（親指の付け根）で着地</strong>足首を守るために重要です</div>
+      </div>
+      <div class="point-card" id="pc3">
+        <div class="point-icon">⚠️</div>
+        <div class="point-text"><strong>フォースプレートの外に落ちない</strong>合図があるまでプレート上でリラックス</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- スライド8: 完了 -->
+  <div class="slide" id="slide-8">
+    <div class="checkmark">✅</div>
+    <h1>説明は以上です</h1>
+    <p>準備ができたら実験者に声をかけてください。<br>ありがとうございます。</p>
+  </div>
+
+</div>
+</div>
+
+<!-- ナビゲーション -->
+<div id="nav">
+  <button id="btn-prev" disabled>◀ 戻る</button>
+  <span id="step-counter">1 / 10</span>
+  <button id="btn-next">次へ ▶</button>
+  <button id="btn-mute" title="音声ON/OFF">🔊</button>
+</div>
+
+<div id="fullscreen-hint" onclick="toggleFullscreen()">[ F ] 全画面</div>
+
+<script>
+// ========== 設定 ==========
+const MEDIA = {
+  youtubeId: 'ZGEFLyIn1vs',
+};
+
+
+// ========== 状態 ==========
+let currentSlide = 0;
+const totalSlides = 9;
+let muted = false;
+let currentAudio = null;
+
+// ========== DOM ==========
+const slides = document.querySelectorAll('.slide');
+const progressFill = document.getElementById('progress-fill');
+const btnNext = document.getElementById('btn-next');
+const btnPrev = document.getElementById('btn-prev');
+const btnMute = document.getElementById('btn-mute');
+const stepCounter = document.getElementById('step-counter');
+
+// ========== メディア初期化 ==========
+function initMedia() {
+  const videoContainer = document.getElementById('video-container');
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://www.youtube.com/embed/${MEDIA.youtubeId}?autoplay=1&loop=1&playlist=${MEDIA.youtubeId}&mute=1&playsinline=1&controls=0`;
+  iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+  iframe.allowFullscreen = true;
+  videoContainer.appendChild(iframe);
+}
+
+// ========== 音声 ==========
+function speak(slideIndex) {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  if (muted) return;
+  const src = `media/narr_${String(slideIndex).padStart(2, '0')}.wav`;
+  currentAudio = new Audio(src);
+  currentAudio.play().catch(() => {});
+}
+
+// ========== スライド表示 ==========
+function showSlide(n) {
+  slides.forEach((s, i) => s.classList.toggle('active', i === n));
+  progressFill.style.width = ((n / (totalSlides - 1)) * 100) + '%';
+  stepCounter.textContent = `${n + 1} / ${totalSlides}`;
+  btnPrev.disabled = (n === 0);
+  btnNext.textContent = (n === totalSlides - 1) ? '最初から ↺' : '次へ ▶';
+
+  // 注意点カードのアニメーション
+  if (n === 7) {
+    ['pc1','pc2','pc3'].forEach((id, i) => {
+      setTimeout(() => {
+        document.getElementById(id)?.classList.add('show');
+      }, i * 350);
+    });
+  } else {
+    ['pc1','pc2','pc3'].forEach(id => document.getElementById(id)?.classList.remove('show'));
+  }
+
+  speak(n);
+}
+
+// ========== ボタン ==========
+btnNext.addEventListener('click', () => {
+  if (currentSlide === totalSlides - 1) {
+    currentSlide = 0;
+  } else {
+    currentSlide++;
+  }
+  showSlide(currentSlide);
+});
+
+btnPrev.addEventListener('click', () => {
+  if (currentSlide > 0) {
+    currentSlide--;
+    showSlide(currentSlide);
+  }
+});
+
+btnMute.addEventListener('click', () => {
+  muted = !muted;
+  btnMute.textContent = muted ? '🔇' : '🔊';
+  if (muted) {
+    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
+  } else {
+    speak(currentSlide);
+  }
+});
+
+// ========== キーボード ==========
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') btnNext.click();
+  if (e.key === 'ArrowLeft') btnPrev.click();
+  if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+  if (e.key === 'm' || e.key === 'M') btnMute.click();
+});
+
+// ========== 全画面 ==========
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// ========== 起動 ==========
+window.addEventListener('load', () => {
+  initMedia();
+  showSlide(0);
+});
+</script>
+</body>
+</html>

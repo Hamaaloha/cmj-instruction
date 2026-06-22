@@ -1,0 +1,8 @@
+*.MOV
+*.mov
+*.heic
+*.HEIC
+*.EXJ
+*.pdf
+generate_narration.py
+CMJ_video_plan*.md
