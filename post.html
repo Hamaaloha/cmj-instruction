@@ -117,10 +117,16 @@
     max-width: 640px;
   }
 
+  .hint {
+    font-size: clamp(13px, 1.4vw, 16px);
+    color: #484f58;
+    margin-top: 12px;
+  }
+
   .highlight { color: #f0883e; font-weight: 700; }
   .accent    { color: #3fb950; font-weight: 700; }
 
-  /* ===== 滞空時間表示 ===== */
+  /* ===== 滞空時間ボックス ===== */
   .time-box {
     background: #161b22;
     border: 2px solid #30363d;
@@ -189,7 +195,7 @@
   .field-name { color: #e6edf3; font-weight: 600; display: block; margin-bottom: 2px; }
   .field-note { font-size: 0.82em; color: #8b949e; }
 
-  /* ===== NAV ===== */
+  /* ===== BOTTOM NAV ===== */
   #nav {
     display: flex;
     align-items: center;
@@ -211,13 +217,18 @@
   }
   #nav button:hover:not(:disabled) { background: #30363d; }
   #nav button:disabled { opacity: 0.3; cursor: default; }
-  #nav #btn-next {
-    background: #238636;
-    border-color: #2ea043;
+  #btn-next {
+    background: #238636 !important;
+    border-color: #2ea043 !important;
     font-weight: 700;
-    padding: 10px 36px;
+    padding: 10px 36px !important;
   }
-  #nav #btn-next:hover { background: #2ea043; }
+  #btn-next:hover { background: #2ea043 !important; }
+  #btn-mute {
+    font-size: 1.1rem;
+    padding: 10px 14px !important;
+    min-width: 44px;
+  }
   #step-counter { color: #8b949e; font-size: 0.9rem; min-width: 48px; text-align: center; }
 </style>
 </head>
@@ -227,6 +238,7 @@
   <span class="site-nav-brand">SSC Guide</span>
   <div class="site-nav-links">
     <a href="https://hamaaloha.github.io/cmj-instruction/" class="site-nav-link">CMJ 実施方法</a>
+    <a href="https://hamaaloha.github.io/cmj-instruction/post.html" class="site-nav-link active">測定後の流れ</a>
     <a href="https://hamaaloha.github.io/ssc_guide/" class="site-nav-link">個票の見方</a>
   </div>
 </nav>
@@ -240,7 +252,6 @@
     <div class="badge">大阪体育大学スポーツ科学センター　測定評価部門</div>
     <h1>測定<br>お疲れ様でした！</h1>
     <p>最後にスマホから<br><span class="highlight">測定結果を登録</span>してください。</p>
-    <p style="color:#484f58; font-size:16px;">▶ ボタンを押して進んでください</p>
   </div>
 
   <!-- スライド1: 滞空時間を受け取る -->
@@ -265,6 +276,7 @@
        target="_blank" rel="noopener">
       📋　フォームを開く
     </a>
+    <p class="hint">フォームを開いたら「次へ ▶」を押してください</p>
   </div>
 
   <!-- スライド3: 入力項目 -->
@@ -283,7 +295,7 @@
         <span class="field-icon">👤</span>
         <div>
           <span class="field-name">氏名 ・ 学籍番号</span>
-          <span class="field-note">フルネームと8桁の学籍番号</span>
+          <span class="field-note">フルネームと学籍番号</span>
         </div>
       </li>
       <li>
@@ -294,6 +306,7 @@
         </div>
       </li>
     </ul>
+    <p class="hint">入力できたら「次へ ▶」を押してください</p>
   </div>
 
   <!-- スライド4: 送信 -->
@@ -310,40 +323,90 @@
   <button id="btn-prev" disabled>◀ 戻る</button>
   <span id="step-counter">1 / 5</span>
   <button id="btn-next">次へ ▶</button>
+  <button id="btn-mute">🔊</button>
 </div>
 
 <script>
-const slides      = Array.from(document.querySelectorAll('.slide'));
-const totalSlides = slides.length;
+const slides       = Array.from(document.querySelectorAll('.slide'));
+const totalSlides  = slides.length;
 const progressFill = document.getElementById('progress-fill');
 const btnNext      = document.getElementById('btn-next');
 const btnPrev      = document.getElementById('btn-prev');
+const btnMute      = document.getElementById('btn-mute');
 const stepCounter  = document.getElementById('step-counter');
-let currentSlide   = 0;
+
+// スライド2・3はフォーム操作が必要なため自動進行しない
+const AUTO_ADVANCE = [true, true, false, false, true];
+
+let currentSlide = 0;
+let muted        = false;
+let currentAudio = null;
+let nextTimer    = null;
+
+function scheduleNext() {
+  if (!AUTO_ADVANCE[currentSlide]) return;
+  nextTimer = setTimeout(() => {
+    if (currentSlide < totalSlides - 1) {
+      currentSlide++;
+      showSlide(currentSlide);
+    }
+  }, 2000);
+}
+
+function speak(n) {
+  clearTimeout(nextTimer);
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  if (muted) { scheduleNext(); return; }
+  const src = `media/post_${String(n).padStart(2, '0')}.wav`;
+  currentAudio = new Audio(src);
+  currentAudio.addEventListener('ended', scheduleNext);
+  currentAudio.play().catch(() => scheduleNext());
+}
 
 function showSlide(n) {
   slides.forEach((s, i) => s.classList.toggle('active', i === n));
   progressFill.style.width = (n / (totalSlides - 1) * 100) + '%';
   stepCounter.textContent  = `${n + 1} / ${totalSlides}`;
-  btnPrev.disabled = (n === 0);
-  btnNext.textContent = (n === totalSlides - 1) ? '最初から ↺' : '次へ ▶';
+  btnPrev.disabled         = (n === 0);
+  btnNext.textContent      = (n === totalSlides - 1) ? '最初から ↺' : '次へ ▶';
+  speak(n);
 }
 
 btnNext.addEventListener('click', () => {
+  clearTimeout(nextTimer);
   currentSlide = (currentSlide === totalSlides - 1) ? 0 : currentSlide + 1;
   showSlide(currentSlide);
 });
 
 btnPrev.addEventListener('click', () => {
-  if (currentSlide > 0) { currentSlide--; showSlide(currentSlide); }
+  if (currentSlide > 0) {
+    clearTimeout(nextTimer);
+    currentSlide--;
+    showSlide(currentSlide);
+  }
+});
+
+btnMute.addEventListener('click', () => {
+  muted = !muted;
+  btnMute.textContent = muted ? '🔇' : '🔊';
+  if (muted) {
+    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
+  } else {
+    speak(currentSlide);
+  }
 });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === ' ') btnNext.click();
   if (e.key === 'ArrowLeft') btnPrev.click();
+  if (e.key === 'm' || e.key === 'M') btnMute.click();
 });
 
-showSlide(0);
+window.addEventListener('load', () => showSlide(0));
 </script>
 </body>
 </html>
